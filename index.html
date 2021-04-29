@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        .chart-container {
+            max-width: 1050px;
+            margin: 0 auto;
+            font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+        }
+
+        svg {
+            overflow: visible;
+        }
+
+        h1 {
+            /* margin-left: -20px; */
+        }
+
+        .y .tick text {
+            fill: #333;
+            /* font-weight: 550; */
+
+        }
+
+        .y .domain {
+            display: none;
+        }
+
+        .x .domain {
+            display: none;
+        }
+
+        .x .tick line {
+            stroke: rgba(0, 0, 0, .2)
+        }
+
+    </style>
+</head>
+
+
+
+<body>
+    <div class="chart-container">
+        <h1 class="headline">
+            Air Quality in New Delhi is usually "unhealthy" at least
+        </h1>
+        
+        <svg width="1050px" height="1000px" margin = "100px">
+        </svg>
+
+    </div>
+</body>
+
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<script>
+    console.log(d3)
+    let width = 800;
+    let height = 500;
+
+    let svg = d3.select("body").select("svg");
+
+    let margin = { top: 0, right: 0, bottom: 30, left: 0 };
+
+    let colorsairq = ["#D4E8C1",'#F3C654','#F28124','#C94227','#A42614','#800000','#440012','lightgrey'];
+
+    let color = d3.scaleOrdinal()
+         .domain(["good", "moderate", "unhealthy_sensitive", "unhealthy", "unhealthy_very", "hazardous", "extreme", "max_add"])
+         .range(colorsairq)
+         .unknown("#ccc")
+
+    d3.csv("HW4_Q1_VFC.csv").then(function (data) {
+
+        data.forEach(d =>{
+            d.good = + d.good;
+            d.moderate = + d.moderate;
+            d.unhealthy_sensitive = + d.unhealthy_sensitive;
+            d.unhealthy = + d.unhealthy;
+            d.unhealthy_very = + d.unhealthy_very;
+            d.hazardous = + d.hazardous;
+            d.extreme = + d.extreme;
+            d.max_add = + d.max_add;
+            d.max = + d.max;
+            d.date = new Date( d.date + "T00:00");
+        })
+
+        console.log({ data })
+        
+        let series = d3.stack()
+            .keys(["good", "moderate", "unhealthy_sensitive", "unhealthy", "unhealthy_very", "hazardous", "extreme", "max_add"])
+            (data)
+
+        console.log({ series })
+
+        let x = d3.scaleTime()
+            .domain(d3.extent(data.map(function (d) { return d.date }))) //d3 extent
+            .range([margin.left, width - margin.right])
+
+        let y = d3.scaleLinear()
+            .domain(d3.extent(data.map(function (d) { return d.max })))
+            .range([height - margin.bottom, margin.top]) 
+     
+        let xTickSettings = d3.axisBottom(x)
+            .tickSize(7)
+            .tickPadding(8)
+            .tickFormat(d => {return d3.timeFormat("%b")(new Date(d))})
+
+        let xAxis = svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", `translate(0,${height - margin.bottom})`)
+            .call(xTickSettings)
+        
+        let yTickSettings = d3.axisLeft(y)
+            .tickSize(-width)
+            .tickPadding(4)
+            .tickValues([100, 200, 300, 400, 500, 600, 700, 800, 900])
+            
+        let yAxis = svg.append("g")
+            .attr("class", "y axis")
+            .attr("color", "lightgrey")
+            .style("stroke-dasharray", "2 2")
+            .attr("transform", `translate(${margin.left},0)`)
+            .call(yTickSettings) 
+
+        let group = svg.append("g")
+            .selectAll("g")
+            .data(series)
+            .join("g")
+            .attr("fill", d => color(d.key))
+            .attr("data-legend", function(d) { return d.name})
+
+        let bars = group
+            .selectAll("rect")
+            .data(d => d)
+            .join("rect")
+            .attr("x", (d, i) => x(d.data.date))
+            .attr("width", 2)
+            .attr("y", d => y(d[1]))
+            .attr("height", d => y(d[0]) - y(d[1]))
+
+        let yAxisTitle = svg.append("g")
+            .attr("class", "y title")
+            .append("text")
+            .attr("y", +margin.top + height / 10)
+            .attr("x", +margin.left)
+            .attr("font-size","12px")
+            .attr("dy", "-.5em")
+            .attr("font-family", "sans-serif")
+            .attr("font-weight", 5)
+            .attr("background-color", "white")
+            .style("text-anchor", "start")
+            .text("micrograms per cubic meter")
+        
+        let legend = svg.append("g")
+            .attr("class", "legend")
+            .append('svg:image')
+            .attr('xlink:href', 'legend.png')
+            .attr("x", width / 3)
+            .attr("y", -50)
+            .attr("width", 250)
+            .attr("height", 128)
+
+        let avg_legend = svg.append("g")
+            .attr("class", "annotation")
+            .append("text")
+            .attr("y", height / 2)
+            .attr("x", width * .89)
+            .attr("font-size","12px")
+            .attr("dy", "-.5em")
+            .attr("fill", "black")
+            .attr("font-family", "sans-serif")
+            .attr("font-weight", 5)
+            .style("text-anchor", "end")
+            .text("daily average")
+
+        let max_legend = svg.append("g")
+            .attr("class", "annotation")
+            .append("text")
+            .attr("y", height / 3)
+            .attr("x", width * .89)
+            .attr("font-size","12px")
+            .attr("dy", "-.5em")
+            .attr("fill", "grey")
+            .attr("font-family", "sans-serif")
+            .attr("font-weight", 5)
+            .style("text-anchor", "end")
+            .text("maximum hour")
+                            
+    })
+
+</script>
